@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Details</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        header {
+            background-color: rgba(33, 6, 58, 0.979);
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+        }
+        .section {
+            padding-left: 30px;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            transform: all 0.5s;
+            position: relative;
+            width: 100%;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            background: url(photos/back.png) no-repeat;
+            background-size: cover;
+            background-position: start;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Order Summary</h1>
+    </header>
+    <div class="section">
+        <div id="orderDetails"></div>
+
+        <div class="order-buttons">
+            <button onclick="addMore()">Add More</button>
+            <button onclick="cancelOrder()">Cancel</button>
+            <button onclick="checkout()">Checkout</button>
+        </div>
+    </div>
+    <script>
+        var orderedItems = {};
+
+        window.onload = function() {
+            loadOrders();
+        };
+
+        function loadOrders() {
+            var existingOrders = localStorage.getItem('orderDetails');
+            if (existingOrders) {
+                existingOrders = JSON.parse(existingOrders);
+                orderedItems = existingOrders.items;
+                displayOrders();
+            } else {
+                document.getElementById('orderDetails').innerHTML = "<p>No orders found.</p>";
+            }
+        }
+
+        function displayOrders() {
+            var orderedQuantities = document.getElementById('orderDetails');
+            var output = "<h2>Ordered Items</h2>";
+            var totalCost = 0;
+
+            for (var product in orderedItems) {
+                output += "<p>" + product + ": ";
+                for (var size in orderedItems[product]) {
+                    var itemQuantity = orderedItems[product][size];
+                    var itemCost = itemQuantity * getItemPrice(product, size);
+                    output += size + ": " + itemQuantity + " (PHP " + itemCost + ") ";
+                    output += `<button onclick="decreaseQuantity('${product}', '${size}')">-</button> `;
+                    totalCost += itemCost;
+                }
+                output += "<br>";
+            }
+
+            output += "<h3>Total Cost: PHP " + totalCost + "</h3>";
+            orderedQuantities.innerHTML = output;
+
+            localStorage.setItem('orderDetails', JSON.stringify({ items: orderedItems, totalCost: totalCost }));
+        }
+
+        function order(productType, size, price) {
+            Swal.fire({
+                title: 'Enter quantity for ' + size + ' ' + productType,
+                input: 'number',
+                inputAttributes: {
+                    autocapitalize: 'off'
+                },
+                showCancelButton: true,
+                confirmButtonText: 'Submit',
+                showLoaderOnConfirm: true,
+                preConfirm: (quantity) => {
+                    return quantity;
+                },
+                allowOutsideClick: () => !Swal.isLoading()
+            }).then((result) => {
+                if (result.isConfirmed && result.value > 0) {
+                    var quantity = parseInt(result.value);
+                    if (!isNaN(quantity) && quantity > 0) {
+                        if (!orderedItems[productType]) {
+                            orderedItems[productType] = {};
+                        }
+                        if (!orderedItems[productType][size]) {
+                            orderedItems[productType][size] = 0;
+                        }
+                        orderedItems[productType][size] += quantity;
+                        updateOrderedQuantities();
+                    } else {
+                        Swal.fire('Error', 'Please enter a valid quantity.', 'error');
+                    }
+                }
+            });
+        }
+
+        function updateOrderedQuantities() {
+            displayOrders();
+        }
+
+        function getItemPrice(productType, size) {
+            var prices = {
+                'Thai': { 'Small': 99, 'Medium': 120, 'Large': 150 },
+                'Black': { 'Small': 99, 'Medium': 120, 'Large': 150 },
+                'Almond': { 'Small': 99, 'Medium': 120, 'Large': 150 },
+                'Matcha': { 'Small': 99, 'Medium': 120, 'Large': 150 },
+                'Taro': { 'Small': 99, 'Medium': 120, 'Large': 150 },
+                'Honeydew': { 'Small': 99, 'Medium': 120, 'Large': 150 }
+            };
+
+            return prices[productType][size];
+        }
+
+        function decreaseQuantity(productType, size) {
+            if (orderedItems.hasOwnProperty(productType) && orderedItems[productType].hasOwnProperty(size)) {
+                if (orderedItems[productType][size] > 0) {
+                    orderedItems[productType][size]--;
+                    if (orderedItems[productType][size] === 0) {
+                        delete orderedItems[productType][size];
+                        if (Object.keys(orderedItems[productType]).length === 0) {
+                            delete orderedItems[productType];
+                        }
+                    }
+                    updateOrderedQuantities();
+                }
+            }
+        }
+
+        function addMore() {
+            window.location.href = 'index.html';
+        }
+
+        function cancelOrder() {
+    Swal.fire({
+        title: 'Are you sure?',
+        text: "You won't be able to revert this!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, cancel it!'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            localStorage.removeItem('orderDetails');
+            orderedItems = {}; // Clear the global orderItems
+            Swal.fire(
+                'Cancelled!',
+                'Your order has been cancelled.',
+                'success'
+            ).then(() => {
+                window.location.href = 'index.html'; // Redirect to index.html
+            });
+        }
+    });
+}
+
+
+        function checkout() {
+            Swal.fire({
+                title: 'Are you sure you want to place the order?',
+                text: "You will not be able to modify the order after this step!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Place Order',
+                cancelButtonText: 'Review Order'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire(
+                        'Success!',
+                        'Your order has been placed successfully.',
+                        'success'
+                    ).then(() => {
+                        localStorage.removeItem('orderDetails');
+                        window.location.href = 'index.html';
+                    });
+                }
+            });
+        }
+    </script>
+</body>
+</html>
